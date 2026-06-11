@@ -1,0 +1,11 @@
+{
+  "owner": "jurplel",
+  "repo": "install-qt-action",
+  "version": "v4.3.0",
+  "commit_sha": "d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005",
+  "url": "https://github.com/jurplel/install-qt-action",
+  "policy_sha": "d636be7e43ef829af6e853da6b3c7566db9f72fe",
+  "test_policy_sha": "843adf9e4b8f85d0c08b27b9d0b09dd094b54702",
+  "test_agent_version": "1",
+  "harden_agent_version": "1"
+}

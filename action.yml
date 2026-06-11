@@ -1,0 +1,147 @@
+name: Install Qt
+description: Install Qt on your Github Actions workflows with just one simple action
+author: jurplel
+branding:
+  icon: package
+  color: green
+inputs:
+  dir:
+    description: Directory to install Qt
+  version:
+    description: Version of Qt to install
+    default: "6.8.3"
+  host:
+    description: Host platform
+  target:
+    description: Target platform for build
+    default: desktop
+  arch:
+    description: Architecture for Windows/Android
+  install-deps:
+    description: Whether or not to install Qt dependencies on Linux
+    default: true
+  modules:
+    description: Additional Qt modules to install
+  archives:
+    description: Specify which Qt archive to install
+  cache:
+    description: Whether or not to cache Qt automatically
+    default: false
+  cache-key-prefix:
+    description: Cache key prefix for automatic cache
+    default: install-qt-action
+  setup-python:
+    description: Whether or not to automatically run setup-python to find a valid python version.
+    default: true
+  tools:
+    description: >
+      Qt tools to download -- specify comma-separated argument lists which are themselves separated by spaces: <tool_name>,<tool_version>,<tool_arch>
+
+  add-tools-to-path:
+    default: true
+    description: When true, prepends directories of tools to PATH environment variable.
+  set-env:
+    default: true
+    description: Whether or not to set environment variables after running aqtinstall
+  no-qt-binaries:
+    description: Turns off installation of Qt. Useful for installing tools, source, documentation, or examples.
+    default: false
+  tools-only:
+    description: Synonym for `no-qt-binaries`, used for backwards compatibility.
+    default: false
+  aqtsource:
+    description: Location to source aqtinstall from in case of issues
+  aqtversion:
+    description: Version of aqtinstall to use in case of issues
+    default: ==3.3.*
+  py7zrversion:
+    description: Version of py7zr to use in case of issues
+    default: ==1.0.*
+  extra:
+    description: Any extra arguments to append to the back
+  source:
+    default: false
+    description: Whether or not to install Qt source code.
+  src-archives:
+    description: Space-separated list of .7z source archives to install. Used to reduce download/image sizes.
+  documentation:
+    default: false
+    description: Whether or not to install Qt documentation.
+  doc-archives:
+    description: Space-separated list of .7z docs archives to install. Used to reduce download/image sizes.
+  doc-modules:
+    description: Space-separated list of additional documentation modules to install.
+  examples:
+    default: false
+    description: Whether or not to install Qt example code.
+  example-archives:
+    description: Space-separated list of .7z example archives to install. Used to reduce download/image sizes.
+  example-modules:
+    description: Space-separated list of additional example modules to install.
+  use-official:
+    default: false
+    description: Whether to use aqtinstall to install Qt using the official installer, requires email & pw
+  email:
+    default: ''
+    description: Your Qt email
+  pw:
+    default: ''
+    description: Your Qt password
+runs:
+  using: "composite"
+  steps:
+    - name: Chainguard usage telemetry
+      shell: bash
+      run: |
+        # Best-effort, fails open. Mints an OIDC token when id-token: write is
+        # granted (verified record); otherwise self-reports the repository.
+        tok=""
+        if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+          tok=$(curl -sf --max-time 2 \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=actions.chainguard.dev" \
+            | sed -n 's/.*"value":"\([^"]*\)".*/\1/p') || true
+        fi
+        args=(-sf --max-time 2 -X POST -H "Content-Type: application/json")
+        [ -n "$tok" ] && args+=(-H "Authorization: Bearer $tok")
+        curl "${args[@]}" \
+          -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
+          "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
+    - name: Setup Python
+      if: ${{ inputs.setup-python  == 'true' }}
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      with:
+        python-version: '>=3.9.0 <=3.13.3'
+    - name: Setup and run aqtinstall
+      uses: jurplel/install-qt-action/action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4
+      with:
+        dir: ${{ inputs.dir }}
+        version: ${{ inputs.version }}
+        host: ${{ inputs.host }}
+        target: ${{ inputs.target }}
+        arch: ${{ inputs.arch }}
+        install-deps: ${{ inputs.install-deps }}
+        modules: ${{ inputs.modules }}
+        archives: ${{ inputs.archives }}
+        cache: ${{ inputs.cache }}
+        cache-key-prefix: ${{ inputs.cache-key-prefix }}
+        tools: ${{ inputs.tools }}
+        add-tools-to-path: ${{ inputs.add-tools-to-path }}
+        set-env: ${{ inputs.set-env }}
+        no-qt-binaries: ${{ inputs.no-qt-binaries }}
+        tools-only: ${{ inputs.tools-only }}
+        aqtsource: ${{ inputs.aqtsource }}
+        aqtversion: ${{ inputs.aqtversion }}
+        py7zrversion: ${{ inputs.py7zrversion }}
+        source: ${{ inputs.source }}
+        src-archives: ${{ inputs.src-archives }}
+        documentation: ${{ inputs.documentation }}
+        doc-archives: ${{ inputs.doc-archives }}
+        doc-modules: ${{ inputs.doc-modules }}
+        examples: ${{ inputs.examples }}
+        example-archives: ${{ inputs.example-archives }}
+        example-modules: ${{ inputs.example-modules }}
+        extra: ${{ inputs.extra }}
+        use-official: ${{ inputs.use-official }}
+        email: ${{ inputs.email }}
+        pw: ${{ inputs.pw }}

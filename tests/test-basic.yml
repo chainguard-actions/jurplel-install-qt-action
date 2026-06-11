@@ -1,0 +1,43 @@
+name: Test basic Qt installation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.8.3"
+          host: linux
+          target: desktop
+          arch: gcc_64
+          dir: ${{ runner.temp }}/qt
+          modules: qtcharts
+          archives: qtbase qtdeclarative
+          extra: --external 7z
+          install-deps: true
+          cache: false
+          cache-key-prefix: install-qt-action
+          setup-python: true
+          add-tools-to-path: true
+          set-env: true
+          no-qt-binaries: false
+          tools-only: false
+          aqtversion: ==3.3.*
+          py7zrversion: ==1.0.*
+          source: false
+          documentation: false
+          examples: false
+          use-official: false
+          email: ''
+          pw: ''
+      - name: Assert Qt is installed
+        run: |
+          echo "Checking Qt installation..."
+          if [ ! -d "$RUNNER_TEMP/qt" ]; then
+            echo "FAIL: Qt directory not found at $RUNNER_TEMP/qt"
+            exit 1
+          fi
+          echo "PASS: Qt directory exists"
