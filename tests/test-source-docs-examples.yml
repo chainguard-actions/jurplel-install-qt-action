@@ -1,0 +1,42 @@
+name: Test Qt source, documentation, and examples installation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.7.3"
+          host: linux
+          target: desktop
+          dir: /tmp/qt-src-docs
+          arch: ""
+          install-deps: false
+          no-qt-binaries: true
+          tools-only: false
+          source: true
+          src-archives: qtbase
+          documentation: true
+          doc-archives: qtcore
+          doc-modules: qtcharts
+          examples: true
+          example-archives: qtbase
+          example-modules: qtcharts
+          aqtsource: ""
+          set-env: false
+          setup-python: true
+          cache: false
+          add-tools-to-path: true
+          aqtversion: "==3.2.*"
+          py7zrversion: "==0.22.*"
+      - name: Assert installation directory exists
+        run: |
+          echo "Checking installation in /tmp/qt-src-docs"
+          if [ ! -d "/tmp/qt-src-docs" ]; then
+            echo "FAIL: Qt install directory /tmp/qt-src-docs not found"
+            exit 1
+          fi
+          echo "PASS: Qt install directory exists"

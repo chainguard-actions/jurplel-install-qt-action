@@ -1,0 +1,38 @@
+name: Test Qt installation with modules and archives
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.7.3"
+          host: linux
+          target: desktop
+          dir: /tmp/qt-modules
+          install-deps: true
+          modules: qtcharts
+          archives: qtbase qttools
+          extra: "--external 7z"
+          set-env: true
+          setup-python: true
+          cache: false
+          no-qt-binaries: false
+          tools-only: false
+          add-tools-to-path: true
+          source: false
+          documentation: false
+          examples: false
+          aqtversion: "==3.2.*"
+          py7zrversion: "==0.22.*"
+      - name: Assert Qt is installed with modules
+        run: |
+          echo "Checking Qt installation in /tmp/qt-modules"
+          if [ ! -d "/tmp/qt-modules" ]; then
+            echo "FAIL: Qt install directory /tmp/qt-modules not found"
+            exit 1
+          fi
+          echo "PASS: Qt install directory exists"

@@ -1,0 +1,36 @@
+name: Test Qt tools installation only
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.7.3"
+          host: linux
+          target: desktop
+          dir: /tmp/qt-tools
+          no-qt-binaries: true
+          tools: tools_ifw,4.6.1,qt.tools.ifw.46
+          add-tools-to-path: true
+          set-env: true
+          setup-python: true
+          cache: false
+          tools-only: false
+          install-deps: true
+          source: false
+          documentation: false
+          examples: false
+          aqtversion: "==3.2.*"
+          py7zrversion: "==0.22.*"
+      - name: Assert tools directory exists
+        run: |
+          echo "Checking tools installation in /tmp/qt-tools"
+          if [ ! -d "/tmp/qt-tools" ]; then
+            echo "FAIL: Qt tools directory /tmp/qt-tools not found"
+            exit 1
+          fi
+          echo "PASS: Qt tools directory exists"

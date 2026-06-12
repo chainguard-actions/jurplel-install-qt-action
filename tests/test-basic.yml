@@ -1,0 +1,45 @@
+name: Test basic Qt installation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.7.3"
+          host: linux
+          target: desktop
+          dir: /tmp/qt-install
+          install-deps: true
+          set-env: true
+          setup-python: true
+          cache: false
+          cache-key-prefix: install-qt-action
+          no-qt-binaries: false
+          tools-only: false
+          add-tools-to-path: true
+          source: false
+          documentation: false
+          examples: false
+          aqtversion: "==3.2.*"
+          py7zrversion: "==0.22.*"
+      - name: Assert Qt is installed
+        run: |
+          echo "Checking Qt installation in /tmp/qt-install"
+          if [ ! -d "/tmp/qt-install" ]; then
+            echo "FAIL: Qt install directory /tmp/qt-install not found"
+            exit 1
+          fi
+          echo "PASS: Qt install directory exists"
+      - name: Assert Qt binary exists
+        run: |
+          QT_BIN=$(find /tmp/qt-install -name "qmake" -type f 2>/dev/null | head -1)
+          echo "qmake found at: $QT_BIN"
+          if [ -z "$QT_BIN" ]; then
+            echo "FAIL: qmake not found under /tmp/qt-install"
+            exit 1
+          fi
+          echo "PASS: qmake found"
