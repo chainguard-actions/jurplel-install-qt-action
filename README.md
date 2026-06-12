@@ -8,6 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
+| v4.2.1 | [`v4.2.1`](https://github.com/chainguard-actions/jurplel-install-qt-action/tree/v4.2.1) | [`12aa033`](https://github.com/jurplel/install-qt-action/commit/12aa0336e1e410b3c6dff5e0722547f7a37e8c60) |
 | v4.3.0 | [`v4.3.0`](https://github.com/chainguard-actions/jurplel-install-qt-action/tree/v4.3.0) | [`d325aaf`](https://github.com/jurplel/install-qt-action/commit/d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005) |
 
 ## Privacy
