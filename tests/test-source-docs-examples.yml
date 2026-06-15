@@ -1,0 +1,32 @@
+name: Test Qt source docs and examples inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.8.3"
+          host: linux
+          target: desktop
+          no-qt-binaries: true
+          source: false
+          src-archives: ""
+          documentation: false
+          doc-archives: ""
+          doc-modules: ""
+          examples: false
+          example-archives: ""
+          example-modules: ""
+          set-env: false
+          install-deps: false
+          cache: false
+          setup-python: true
+          aqtversion: "==3.3.*"
+          py7zrversion: "==1.0.*"
+      - name: Assert action completed
+        run: |
+          echo "PASS: source/docs/examples inputs accepted without error"

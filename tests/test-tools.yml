@@ -1,0 +1,27 @@
+name: Test Qt tools installation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.8.3"
+          host: linux
+          target: desktop
+          no-qt-binaries: true
+          tools: "tools_ifw"
+          add-tools-to-path: true
+          aqtsource: ""
+          set-env: true
+          install-deps: false
+          cache: false
+          setup-python: true
+          aqtversion: "==3.3.*"
+          py7zrversion: "==1.0.*"
+      - name: Assert action completed
+        run: |
+          echo "PASS: tools installation step completed"

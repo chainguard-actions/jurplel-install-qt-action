@@ -1,0 +1,35 @@
+name: Test basic Qt installation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.8.3"
+          host: linux
+          target: desktop
+          dir: /tmp/qt-install
+          modules: ""
+          archives: "qtbase qttools"
+          extra: ""
+          set-env: true
+          install-deps: true
+          cache: false
+          setup-python: true
+          add-tools-to-path: true
+          no-qt-binaries: false
+          tools-only: false
+          aqtversion: "==3.3.*"
+          py7zrversion: "==1.0.*"
+      - name: Assert Qt was installed
+        run: |
+          echo "Checking Qt installation in /tmp/qt-install..."
+          if [ ! -d "/tmp/qt-install" ]; then
+            echo "FAIL: Qt install directory /tmp/qt-install not found"
+            exit 1
+          fi
+          echo "PASS: Qt install directory exists"

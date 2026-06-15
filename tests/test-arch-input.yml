@@ -1,0 +1,25 @@
+name: Test arch input coverage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.8.3"
+          host: linux
+          target: desktop
+          arch: ""
+          no-qt-binaries: true
+          set-env: false
+          install-deps: false
+          cache: false
+          setup-python: true
+          aqtversion: "==3.3.*"
+          py7zrversion: "==1.0.*"
+      - name: Assert action completed with arch input
+        run: |
+          echo "PASS: arch input accepted without error"
