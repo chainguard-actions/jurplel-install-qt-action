@@ -1,0 +1,36 @@
+name: Test no-qt-binaries mode
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: install-qt
+        uses: .
+        with:
+          version: "6.7.3"
+          host: linux
+          target: desktop
+          dir: "/tmp/qt-no-binaries"
+          no-qt-binaries: "true"
+          install-deps: "false"
+          set-env: "false"
+          cache: "false"
+          setup-python: "false"
+
+      - name: Assert Qt binaries are NOT installed
+        run: |
+          # When no-qt-binaries is true and set-env is false, QT_ROOT_DIR should not be set
+          echo "QT_ROOT_DIR: '${QT_ROOT_DIR}'"
+          if [ -n "$QT_ROOT_DIR" ]; then
+            echo "FAIL: QT_ROOT_DIR should not be set when no-qt-binaries=true and set-env=false"
+            exit 1
+          fi
+          # qmake should not be in PATH
+          if which qmake 2>/dev/null; then
+            echo "FAIL: qmake should not be installed when no-qt-binaries=true"
+            exit 1
+          fi
+          echo "PASS: Qt binaries are not installed as expected"

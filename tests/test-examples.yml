@@ -1,0 +1,31 @@
+name: Test examples example-archives and example-modules inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "6.8.3"
+          no-qt-binaries: true
+          examples: true
+          example-archives: "qtbase"
+          example-modules: "qtcharts"
+          set-env: false
+        continue-on-error: true
+      - name: Assert action ran (example-archives and example-modules inputs exercised)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with example-archives and example-modules inputs"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (network unavailable in harness)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

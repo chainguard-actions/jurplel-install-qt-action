@@ -1,4 +1,4 @@
-name: Test basic Qt installation
+name: Test Qt installation to custom directory
 on:
   workflow_dispatch:
 jobs:
@@ -13,28 +13,27 @@ jobs:
           version: "6.7.3"
           host: linux
           target: desktop
-          dir: "/tmp/qt-install"
+          dir: "/tmp/custom-qt"
           install-deps: "true"
           set-env: "true"
           cache: "false"
           setup-python: "false"
           archives: "qtbase icu"
 
-      - name: Assert Qt is installed
+      - name: Assert Qt is installed in custom directory
         run: |
           echo "QT_ROOT_DIR: $QT_ROOT_DIR"
           if [ -z "$QT_ROOT_DIR" ]; then
             echo "FAIL: QT_ROOT_DIR environment variable is not set"
             exit 1
           fi
+          # Check that the install path contains our custom dir
+          if [[ "$QT_ROOT_DIR" != /tmp/custom-qt* ]]; then
+            echo "FAIL: QT_ROOT_DIR ($QT_ROOT_DIR) does not start with /tmp/custom-qt"
+            exit 1
+          fi
           if [ ! -d "$QT_ROOT_DIR" ]; then
             echo "FAIL: QT_ROOT_DIR directory does not exist: $QT_ROOT_DIR"
             exit 1
           fi
-          echo "PASS: Qt installed at $QT_ROOT_DIR"
-
-      - name: Assert qmake is available
-        run: |
-          which qmake || (echo "FAIL: qmake not found in PATH" && exit 1)
-          qmake --version
-          echo "PASS: qmake is available"
+          echo "PASS: Qt installed in custom directory at $QT_ROOT_DIR"

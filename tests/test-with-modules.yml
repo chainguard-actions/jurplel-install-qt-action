@@ -1,4 +1,4 @@
-name: Test basic Qt installation
+name: Test Qt installation with additional modules
 on:
   workflow_dispatch:
 jobs:
@@ -13,14 +13,15 @@ jobs:
           version: "6.7.3"
           host: linux
           target: desktop
-          dir: "/tmp/qt-install"
+          dir: "/tmp/qt-with-modules"
+          modules: "qtcharts"
           install-deps: "true"
           set-env: "true"
           cache: "false"
           setup-python: "false"
           archives: "qtbase icu"
 
-      - name: Assert Qt is installed
+      - name: Assert Qt is installed with modules
         run: |
           echo "QT_ROOT_DIR: $QT_ROOT_DIR"
           if [ -z "$QT_ROOT_DIR" ]; then
@@ -33,8 +34,13 @@ jobs:
           fi
           echo "PASS: Qt installed at $QT_ROOT_DIR"
 
-      - name: Assert qmake is available
+      - name: Assert qtcharts module is installed
         run: |
-          which qmake || (echo "FAIL: qmake not found in PATH" && exit 1)
-          qmake --version
-          echo "PASS: qmake is available"
+          # Check that the qtcharts module files are present
+          CHARTS_HEADER="$QT_ROOT_DIR/include/QtCharts/qchart.h"
+          echo "Looking for: $CHARTS_HEADER"
+          if [ ! -f "$CHARTS_HEADER" ]; then
+            echo "FAIL: QtCharts header not found at $CHARTS_HEADER"
+            exit 1
+          fi
+          echo "PASS: QtCharts module is installed"
