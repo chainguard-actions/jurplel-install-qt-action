@@ -109,11 +109,11 @@ runs:
           "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
     - name: Setup Python
       if: ${{ inputs.setup-python  == 'true' }}
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+      uses: chainguard-actions/actions-setup-python@6e055a15c9b620aae4c8d0a8b85a69f93f1cce70 # v6
       with:
         python-version: '>=3.9.0 <=3.13.3'
     - name: Setup and run aqtinstall
-      uses: jurplel/install-qt-action/action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4
+      uses: jurplel/install-qt-action/action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4
       with:
         dir: ${{ inputs.dir }}
         version: ${{ inputs.version }}

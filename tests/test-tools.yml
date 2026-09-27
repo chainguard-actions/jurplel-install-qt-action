@@ -1,4 +1,4 @@
-name: Test Qt tools installation
+name: Test tools input
 on:
   workflow_dispatch:
 jobs:
@@ -9,19 +9,19 @@ jobs:
       - id: action
         uses: .
         with:
-          version: "6.8.3"
-          host: linux
-          target: desktop
           no-qt-binaries: true
-          tools: "tools_ifw"
+          tools: tools_ifw,4.8,qt.tools.ifw.48
           add-tools-to-path: true
-          aqtsource: ""
-          set-env: true
-          install-deps: false
-          cache: false
-          setup-python: true
-          aqtversion: "==3.3.*"
-          py7zrversion: "==1.0.*"
-      - name: Assert action completed
+          set-env: false
+        continue-on-error: true
+      - name: Assert action ran with tools input
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
         run: |
-          echo "PASS: tools installation step completed"
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran with tools input"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

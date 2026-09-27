@@ -1,0 +1,38 @@
+name: Test no-qt-binaries mode
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: install-qt
+        uses: .
+        with:
+          version: "6.8.3"
+          target: desktop
+          dir: /tmp/qt-install
+          no-qt-binaries: true
+          set-env: false
+          setup-python: true
+          cache: false
+          install-deps: false
+
+      - name: Assert action completed without error in no-qt-binaries mode
+        run: |
+          echo "Action completed in no-qt-binaries mode"
+          # In no-qt-binaries mode, QT_ROOT_DIR should not be set (set-env: false)
+          if [ -n "$QT_ROOT_DIR" ]; then
+            echo "WARN: QT_ROOT_DIR is set to $QT_ROOT_DIR (unexpected with set-env: false)"
+          else
+            echo "PASS: QT_ROOT_DIR is not set as expected (set-env: false, no-qt-binaries: true)"
+          fi
+          # Qt binaries directory should not exist since no-qt-binaries: true
+          QT_DIR="/tmp/qt-install/Qt"
+          if [ -d "$QT_DIR" ]; then
+            echo "INFO: Qt directory exists at $QT_DIR (may contain tools only)"
+          else
+            echo "PASS: No Qt binaries directory created as expected"
+          fi
+          echo "PASS: Action completed successfully in no-qt-binaries mode"

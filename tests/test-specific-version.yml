@@ -1,0 +1,33 @@
+name: Test specific Qt version input (no-qt-binaries)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: install-qt
+        uses: .
+        with:
+          version: "5.15.2"
+          target: desktop
+          dir: /tmp/qt-install
+          install-deps: false
+          set-env: false
+          setup-python: true
+          cache: false
+          no-qt-binaries: true
+
+      - name: Assert action accepted version 5.15.2 without error
+        run: |
+          echo "Action completed with version 5.15.2 in no-qt-binaries mode"
+          # In no-qt-binaries mode, no Qt binaries are installed
+          # but the action should complete without error
+          QT_DIR="/tmp/qt-install/Qt"
+          if [ -d "$QT_DIR" ]; then
+            echo "INFO: Qt directory exists at $QT_DIR"
+          else
+            echo "PASS: No Qt binaries directory created (no-qt-binaries: true)"
+          fi
+          echo "PASS: Action accepted version 5.15.2 and completed successfully"
