@@ -1,0 +1,234 @@
+name: Install Qt
+description: Install Qt on your Github Actions workflows with just one simple action
+author: jurplel
+branding:
+  icon: package
+  color: green
+inputs:
+  dir:
+    description: Directory to install Qt
+  version:
+    description: Version of Qt to install
+    default: "6.8.3"
+  host:
+    description: Host platform
+  target:
+    description: Target platform for build
+    default: desktop
+  arch:
+    description: Architecture or build variant
+  install-deps:
+    description: Whether or not to install Qt dependencies on Linux
+    default: true
+  modules:
+    description: Additional Qt modules to install
+  archives:
+    description: Specify which Qt archive to install
+  cache:
+    description: Whether or not to cache Qt automatically
+    default: false
+  cache-key-prefix:
+    description: Cache key prefix for automatic cache
+    default: install-qt-action
+  setup-python:
+    description: Whether or not to automatically run setup-python to find a valid python version.
+    default: true
+  tools:
+    description: >
+      Qt tools to download
+      --
+      specify comma-separated argument lists which are themselves separated by spaces:
+      <tool_name>,<tool_version>,<tool_arch>
+  add-tools-to-path:
+    default: true
+    description: When true, prepends directories of tools to PATH environment variable.
+  set-env:
+    default: true
+    description: Whether or not to set environment variables after running aqtinstall
+  no-qt-binaries:
+    description: Turns off installation of Qt. Useful for installing tools, source, documentation, or examples.
+    default: false
+  tools-only:
+    description: Synonym for `no-qt-binaries`, used for backwards compatibility. Deprecated.
+    default: false
+  aqtsource:
+    description: Location to source aqtinstall from in case of issues
+  aqtversion:
+    description: Version of aqtinstall to use in case of issues
+    default: ==3.3.*
+  py7zrversion:
+    description: Version of py7zr to use in case of issues
+    default: ==1.1.0  # was "==1.1.*"
+    # Use an older version as a workaround for Bad7zFile on Windows. Cache invalidation let us find this upstream bug.
+  extra:
+    description: Any extra arguments to append to the back
+  source:
+    default: false
+    description: Whether or not to install Qt source code.
+  src-archives:
+    description: Space-separated list of .7z source archives to install. Used to reduce download/image sizes.
+  documentation:
+    default: false
+    description: Whether or not to install Qt documentation.
+  doc-archives:
+    description: Space-separated list of .7z docs archives to install. Used to reduce download/image sizes.
+  doc-modules:
+    description: Space-separated list of additional documentation modules to install.
+  examples:
+    default: false
+    description: Whether or not to install Qt example code.
+  example-archives:
+    description: Space-separated list of .7z example archives to install. Used to reduce download/image sizes.
+  example-modules:
+    description: Space-separated list of additional example modules to install.
+  use-official:
+    default: false
+    description: Whether to use aqtinstall to install Qt using the official installer, requires email & pw
+  email:
+    default: ''
+    description: Your Qt email
+  pw:
+    default: ''
+    description: Your Qt password
+outputs:
+  host:
+    description: Host platform of the installed Qt
+    value: ${{ steps.aqtinstall.outputs.host }}
+  target:
+    description: Target platform for build of the installed Qt
+    value: ${{ steps.aqtinstall.outputs.target }}
+  version:
+    description: Exact version of the installed Qt
+    value: ${{ steps.aqtinstall.outputs.version }}
+  arch:
+    description: Architecture or build variant of the installed Qt
+    value: ${{ steps.aqtinstall.outputs.arch }}
+  qt-root-dir:
+    description: Absolute path to the base directory (installation prefix) of the installed Qt
+    value: ${{ steps.aqtinstall.outputs.qt-root-dir }}
+  qt-plugin-path:
+    description: Absolute path to the installed Qt plugins directory
+    value: ${{ steps.aqtinstall.outputs.qt-plugin-path }}
+  qml2-import-path:
+    description: Absolute path to the installed Qt QML imports directory
+    value: ${{ steps.aqtinstall.outputs.qml2-import-path }}
+  qt-host-path:
+    description: Absolute path to the host Qt installation directory when required
+    value: ${{ steps.aqtinstall.outputs.qt-host-path }}
+runs:
+  using: "composite"
+  steps:
+  - name: Chainguard usage telemetry
+    shell: bash
+    run: |
+      # Best-effort, fails open. Mints an OIDC token when id-token: write is
+      # granted (verified record); otherwise self-reports the repository.
+      tok=""
+      if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+        tok=$(curl -sf --max-time 2 \
+          -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=actions.chainguard.dev" \
+          | sed -n 's/.*"value":"\([^"]*\)".*/\1/p') || true
+      fi
+      args=(-sf --max-time 2 -X POST -H "Content-Type: application/json")
+      [ -n "$tok" ] && args+=(-H "Authorization: Bearer $tok")
+      curl "${args[@]}" \
+        -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
+        "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
+  - name: Check the existence of built JavaScript action
+    shell: bash
+    working-directory: ${{ github.action_path }}  # $GITHUB_ACTION_PATH; composite actions only.
+    run: |
+      if [[ -f './action/lib/main.js' ]]; then
+        exit 0
+      fi
+
+      # Workflow commands must be in one line.
+      printf '%s' \
+        '::error title=Action not built::' \
+        'This TypeScript action cannot be used before building within Node.js environment. ' \
+        'Maybe you are currently using non-tagging branches, for example, the "master" branch. ' \
+        'Only v* branches have built JavaScript action file. ' \
+        'If you would like to test unreleased changes, please refer to the CI workflows ' \
+        'in our repository: https://github.com/jurplel/install-qt-action . ' \
+        'Exiting... '
+
+      exit 1
+
+  - name: Check Python version for potential bugs and notify users
+    if: ${{ inputs.setup-python  != 'true' }}
+    shell: bash
+    run: |
+      if command -v python >/dev/null 2>&1; then
+        PYTHON='python'
+      elif command -v python3 >/dev/null 2>&1; then
+        PYTHON='python3'
+      else
+        echo '::error title=Python not found::Neither "python" nor "python3" found in system.'
+        exit 1
+      fi
+
+      exec "$PYTHON" - <<'EOF'
+
+      import platform
+      import sys
+
+      if (3, 14, ) <= (sys.version_info.major, sys.version_info.minor, ):
+          exit(0)
+
+      message = ' '.join((
+        f'The current running Python version {platform.python_version()} is older than 3.14.',
+        'It works fine with aqtinstall in most cases, but may have bugs with file type detection.',
+        'If you are experiencing errors related to "zipfile.BadZipFile", please upgrade Python.',
+        'For details, please see upstream report:',
+        'https://github.com/miurahr/aqtinstall/issues/1042',
+      ))
+      print(f'::notice title=Old Python detected::{message}')
+
+      EOF
+
+  - name: Setup Python
+    if: ${{ inputs.setup-python  == 'true' }}
+    uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+    with:
+      python-version: '>=3.14.0'
+
+  - name: Setup and run aqtinstall
+    id: aqtinstall
+    # The dollar sign:
+    # - Reference same-repository actions with self-repository syntax - GitHub Changelog
+    #   https://github.blog/changelog/2026-07-30-reference-same-repository-actions-with-self-repository-syntax/
+    # To run tests in this repository, we need to replace "$/action" with "./action"
+    # because a "lib/main.js" file is expected, but we don't have one in non-tagging branches.
+    uses: $/action
+    with:
+      dir: ${{ inputs.dir }}
+      version: ${{ inputs.version }}
+      host: ${{ inputs.host }}
+      target: ${{ inputs.target }}
+      arch: ${{ inputs.arch }}
+      install-deps: ${{ inputs.install-deps }}
+      modules: ${{ inputs.modules }}
+      archives: ${{ inputs.archives }}
+      cache: ${{ inputs.cache }}
+      cache-key-prefix: ${{ inputs.cache-key-prefix }}
+      tools: ${{ inputs.tools }}
+      add-tools-to-path: ${{ inputs.add-tools-to-path }}
+      set-env: ${{ inputs.set-env }}
+      no-qt-binaries: ${{ inputs.no-qt-binaries }}
+      tools-only: ${{ inputs.tools-only }}
+      aqtsource: ${{ inputs.aqtsource }}
+      aqtversion: ${{ inputs.aqtversion }}
+      py7zrversion: ${{ inputs.py7zrversion }}
+      source: ${{ inputs.source }}
+      src-archives: ${{ inputs.src-archives }}
+      documentation: ${{ inputs.documentation }}
+      doc-archives: ${{ inputs.doc-archives }}
+      doc-modules: ${{ inputs.doc-modules }}
+      examples: ${{ inputs.examples }}
+      example-archives: ${{ inputs.example-archives }}
+      example-modules: ${{ inputs.example-modules }}
+      extra: ${{ inputs.extra }}
+      use-official: ${{ inputs.use-official }}
+      email: ${{ inputs.email }}
+      pw: ${{ inputs.pw }}

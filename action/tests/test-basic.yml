@@ -1,0 +1,89 @@
+name: Test basic Qt 6 install
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bootstrap action sources into the workspace if missing
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          echo "workspace: $GITHUB_WORKSPACE"
+          ls -la
+          if [ -f action/action.yml ] && [ -f action/lib/main.js ]; then
+            echo "action/ already present with built lib"
+            exit 0
+          fi
+          rm -rf /tmp/iqa-src
+          git clone --depth 1 --branch v4.5.0 https://github.com/jurplel/install-qt-action.git /tmp/iqa-src
+          if [ ! -f action/action.yml ]; then
+            rm -rf action
+            cp -r /tmp/iqa-src/action action
+          fi
+          if [ ! -f action/lib/main.js ]; then
+            (cd action && (npm ci || npm install) && npm run build)
+          fi
+          ls -la action action/lib
+          [ -f action/lib/main.js ] || { echo "FAIL: could not build action"; exit 1; }
+      - name: Ensure python3 + pip are available
+        run: |
+          SUDO="$(command -v sudo || true)"
+          if ! python3 -m pip --version; then
+            $SUDO apt-get update && $SUDO apt-get install -y python3-pip
+          fi
+          echo "PIP_BREAK_SYSTEM_PACKAGES=1" >> "$GITHUB_ENV"
+      - id: qt
+        uses: .
+        with:
+          dir: ${{ runner.temp }}/qtbasic
+          version: "6.5.3"
+          host: linux
+          target: desktop
+          install-deps: "false"
+          archives: qtbase icu
+      - name: Assert outputs
+        env:
+          HOST: ${{ steps.qt.outputs.host }}
+          TARGET: ${{ steps.qt.outputs.target }}
+          VERSION: ${{ steps.qt.outputs.version }}
+          ARCH: ${{ steps.qt.outputs.arch }}
+          ROOT: ${{ steps.qt.outputs.qt-root-dir }}
+          PLUGIN: ${{ steps.qt.outputs.qt-plugin-path }}
+          QML: ${{ steps.qt.outputs.qml2-import-path }}
+          EXPECTED_ROOT: ${{ runner.temp }}/qtbasic/Qt/6.5.3/gcc_64
+        run: |
+          echo "host=$HOST target=$TARGET version=$VERSION arch=$ARCH"
+          echo "root=$ROOT plugin=$PLUGIN qml=$QML"
+          fail=0
+          [ "$HOST" = "linux" ] || { echo "FAIL: host"; fail=1; }
+          [ "$TARGET" = "desktop" ] || { echo "FAIL: target"; fail=1; }
+          [ "$VERSION" = "6.5.3" ] || { echo "FAIL: version"; fail=1; }
+          [ "$ARCH" = "gcc_64" ] || { echo "FAIL: arch"; fail=1; }
+          [ "$ROOT" = "$EXPECTED_ROOT" ] || { echo "FAIL: qt-root-dir"; fail=1; }
+          [ "$PLUGIN" = "$EXPECTED_ROOT/plugins" ] || { echo "FAIL: plugin path"; fail=1; }
+          [ "$QML" = "$EXPECTED_ROOT/qml" ] || { echo "FAIL: qml path"; fail=1; }
+          [ -x "$ROOT/bin/qmake" ] || { echo "FAIL: qmake missing"; fail=1; }
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"
+      - name: Assert environment
+        env:
+          EXPECTED_ROOT: ${{ runner.temp }}/qtbasic/Qt/6.5.3/gcc_64
+        run: |
+          echo "QT_ROOT_DIR=$QT_ROOT_DIR"
+          echo "QT_PLUGIN_PATH=$QT_PLUGIN_PATH"
+          echo "QML2_IMPORT_PATH=$QML2_IMPORT_PATH"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+          fail=0
+          [ "$QT_ROOT_DIR" = "$EXPECTED_ROOT" ] || { echo "FAIL: QT_ROOT_DIR"; fail=1; }
+          [ "$QT_PLUGIN_PATH" = "$EXPECTED_ROOT/plugins" ] || { echo "FAIL: QT_PLUGIN_PATH"; fail=1; }
+          [ "$QML2_IMPORT_PATH" = "$EXPECTED_ROOT/qml" ] || { echo "FAIL: QML2_IMPORT_PATH"; fail=1; }
+          case ":$LD_LIBRARY_PATH:" in *":$EXPECTED_ROOT/lib:"*) ;; *) echo "FAIL: LD_LIBRARY_PATH"; fail=1;; esac
+          case ":$PKG_CONFIG_PATH:" in *":$EXPECTED_ROOT/lib/pkgconfig:"*) ;; *) echo "FAIL: PKG_CONFIG_PATH"; fail=1;; esac
+          QMAKE="$(command -v qmake || true)"
+          echo "qmake on PATH: $QMAKE"
+          [ "$QMAKE" = "$EXPECTED_ROOT/bin/qmake" ] || { echo "FAIL: qmake not on PATH"; fail=1; }
+          qmake -query QT_VERSION | tee /tmp/qtv
+          grep -q '^6.5.3$' /tmp/qtv || { echo "FAIL: qmake version"; fail=1; }
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"

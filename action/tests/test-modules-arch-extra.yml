@@ -1,0 +1,69 @@
+name: Test explicit arch, extra modules, extra args and aqtsource
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bootstrap action sources into the workspace if missing
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          echo "workspace: $GITHUB_WORKSPACE"
+          ls -la
+          if [ -f action/action.yml ] && [ -f action/lib/main.js ]; then
+            echo "action/ already present with built lib"
+            exit 0
+          fi
+          rm -rf /tmp/iqa-src
+          git clone --depth 1 --branch v4.5.0 https://github.com/jurplel/install-qt-action.git /tmp/iqa-src
+          if [ ! -f action/action.yml ]; then
+            rm -rf action
+            cp -r /tmp/iqa-src/action action
+          fi
+          if [ ! -f action/lib/main.js ]; then
+            (cd action && (npm ci || npm install) && npm run build)
+          fi
+          ls -la action action/lib
+          [ -f action/lib/main.js ] || { echo "FAIL: could not build action"; exit 1; }
+      - name: Ensure python3 + pip are available
+        run: |
+          SUDO="$(command -v sudo || true)"
+          if ! python3 -m pip --version; then
+            $SUDO apt-get update && $SUDO apt-get install -y python3-pip
+          fi
+          echo "PIP_BREAK_SYSTEM_PACKAGES=1" >> "$GITHUB_ENV"
+      - id: qt
+        uses: .
+        with:
+          dir: ${{ runner.temp }}/qtmods
+          version: "6.5.3"
+          host: linux
+          target: desktop
+          arch: gcc_64
+          install-deps: "false"
+          modules: qtcharts
+          archives: qtbase icu
+          extra: --timeout 120
+          aqtsource: aqtinstall==3.3.*
+      - name: Assert outputs and module installed
+        env:
+          ARCH: ${{ steps.qt.outputs.arch }}
+          VERSION: ${{ steps.qt.outputs.version }}
+          ROOT: ${{ steps.qt.outputs.qt-root-dir }}
+          EXPECTED_ROOT: ${{ runner.temp }}/qtmods/Qt/6.5.3/gcc_64
+        run: |
+          echo "arch=$ARCH version=$VERSION root=$ROOT"
+          fail=0
+          [ "$ARCH" = "gcc_64" ] || { echo "FAIL: arch"; fail=1; }
+          [ "$VERSION" = "6.5.3" ] || { echo "FAIL: version"; fail=1; }
+          [ "$ROOT" = "$EXPECTED_ROOT" ] || { echo "FAIL: qt-root-dir"; fail=1; }
+          [ -x "$ROOT/bin/qmake" ] || { echo "FAIL: qmake missing"; fail=1; }
+          ls "$ROOT/lib" | grep -i charts || true
+          if ! ls "$ROOT/lib" | grep -q 'libQt6Charts\.so'; then
+            echo "FAIL: qtcharts module not installed"
+            fail=1
+          fi
+          python3 -m pip show aqtinstall | tee /tmp/aqt.txt
+          grep -q '^Version: 3\.3\.' /tmp/aqt.txt || { echo "FAIL: aqtinstall from aqtsource not installed"; fail=1; }
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"

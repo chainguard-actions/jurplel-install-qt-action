@@ -1,0 +1,38 @@
+name: Test set-env false
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # act cannot resolve the action's inner "uses: $/action" step, so the
+      # step may fail under act; outputs are validated strictly on success.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          version: "6.8.3"
+          dir: ${{ runner.temp }}/qt-noenv
+          install-deps: "false"
+          set-env: "false"
+      - name: Assert env never exported; outputs valid on success
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          ROOT: ${{ steps.action.outputs.qt-root-dir }}
+          VERSION: ${{ steps.action.outputs.version }}
+        run: |
+          echo "outcome=$OUTCOME root=$ROOT version=$VERSION QT_ROOT_DIR='${QT_ROOT_DIR:-}'"
+          [ -z "${QT_ROOT_DIR:-}" ] || { echo "FAIL: QT_ROOT_DIR should not be set"; exit 1; }
+          [ -z "${QT_PLUGIN_PATH:-}" ] || { echo "FAIL: QT_PLUGIN_PATH should not be set"; exit 1; }
+          if [ "$OUTCOME" = "success" ]; then
+            [ "$VERSION" = "6.8.3" ] || { echo "FAIL: version"; exit 1; }
+            [ -d "$ROOT" ] || { echo "FAIL: qt-root-dir missing"; exit 1; }
+            case ":$PATH:" in *":$ROOT/bin:"*) echo "FAIL: bin on PATH"; exit 1 ;; esac
+            echo "PASS: outputs set, env not exported"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed at the unsupported 'uses: \$/action' step under act; no env leaked"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

@@ -1,0 +1,55 @@
+name: Test documentation install with doc-archives and doc-modules
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bootstrap action sources into the workspace if missing
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          echo "workspace: $GITHUB_WORKSPACE"
+          ls -la
+          if [ -f action/action.yml ] && [ -f action/lib/main.js ]; then
+            echo "action/ already present with built lib"
+            exit 0
+          fi
+          rm -rf /tmp/iqa-src
+          git clone --depth 1 --branch v4.5.0 https://github.com/jurplel/install-qt-action.git /tmp/iqa-src
+          if [ ! -f action/action.yml ]; then
+            rm -rf action
+            cp -r /tmp/iqa-src/action action
+          fi
+          if [ ! -f action/lib/main.js ]; then
+            (cd action && (npm ci || npm install) && npm run build)
+          fi
+          ls -la action action/lib
+          [ -f action/lib/main.js ] || { echo "FAIL: could not build action"; exit 1; }
+      - name: Ensure python3 + pip are available
+        run: |
+          SUDO="$(command -v sudo || true)"
+          if ! python3 -m pip --version; then
+            $SUDO apt-get update && $SUDO apt-get install -y python3-pip
+          fi
+          echo "PIP_BREAK_SYSTEM_PACKAGES=1" >> "$GITHUB_ENV"
+      - id: qt
+        uses: .
+        with:
+          dir: ${{ runner.temp }}/qtdoc
+          version: "6.5.3"
+          host: linux
+          install-deps: "false"
+          no-qt-binaries: "true"
+          documentation: "true"
+          doc-archives: qtcore
+          doc-modules: qtcharts
+      - name: Assert documentation installed
+        env:
+          DOC_DIR: ${{ runner.temp }}/qtdoc/Qt/Docs/Qt-6.5.3
+        run: |
+          ls -la "$DOC_DIR" || true
+          if [ ! -d "$DOC_DIR" ] || [ -z "$(ls -A "$DOC_DIR")" ]; then
+            echo "FAIL: documentation directory missing or empty"
+            exit 1
+          fi
+          echo "PASS"

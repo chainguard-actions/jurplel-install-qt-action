@@ -1,16 +1,403 @@
-# jurplel/install-qt-action
+# `install-qt-action`
 
-Install Qt on your Github Actions workflows with just one simple action
+Installing Qt on Github Actions workflows manually is the worst.
 
-Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/jurplel/install-qt-action](https://github.com/jurplel/install-qt-action).
+You know what's easier than dealing with that? Just using this:
+```yml
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+```
 
-## Versions
+All done.
 
-| Version | Tag | Upstream commit |
-|---------|-----|-----------------|
-| v4.2.1 | [`v4.2.1`](https://github.com/chainguard-actions/jurplel-install-qt-action/tree/v4.2.1) | [`12aa033`](https://github.com/jurplel/install-qt-action/commit/12aa0336e1e410b3c6dff5e0722547f7a37e8c60) |
-| v4.3.0 | [`v4.3.0`](https://github.com/chainguard-actions/jurplel-install-qt-action/tree/v4.3.0) | [`d325aaf`](https://github.com/jurplel/install-qt-action/commit/d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005) |
-| v4.3.1 | [`v4.3.1`](https://github.com/chainguard-actions/jurplel-install-qt-action/tree/v4.3.1) | [`48d3ad6`](https://github.com/jurplel/install-qt-action/commit/48d3ad6db93f3627c8ee7a0454bc6f3744f7e730) |
+> [!NOTE]
+> Each new major version of this project includes changes that can break workflows written to use an older version of
+> this project. These changes are summarized here, to help you upgrade your existing workflows.
+>
+> [Upgrade guide](README_upgrade_guide.md) to newer major versions of `install-qt-action`
+
+
+## Options
+Some inputs have default values and may be omitted.  
+
+### `version`
+The desired version of Qt to install.
+
+You can also pass in [SimpleSpec version](https://pypi.org/project/semantic-version/#the-simplespec-scheme) ranges or use wildcards, for example `6.2.*` or `>=6.2.0,<6.5.0`. Beta releases will not be excluded if the version range is too large (e.g., `>=6.*.*`); you need to set ranges and wildcard patterns accordingly.
+
+Default: `6.8.3` (A tested Qt 6 LTS version for open-source licensed users)
+
+**Please note that for Linux builds, Qt 6+ requires Ubuntu 20.04 or later.**
+
+### `host`
+This is the host platform of the Qt version you will be installing. It's unlikely that you will need to set this manually if you are just building.
+
+For example, if you are building on Linux and targeting desktop, you would set host to `linux`. If you are building on Linux and targeting android before Qt 6.7, you would set host to `linux` also. The host platform is the platform that your application will build on, not its target platform.
+
+Possible values: `windows`, `windows_arm64`, `mac`, `linux`, `linux_arm64`, or `all_os`.  
+`all_os` is used for WASM and Android targets from Qt 6.7.0 onward, and is incompatible with `aqtinstall < 3.2.0`.  
+
+Defaults:
+- `all_os` when `target` is `android` or `wasm`, the resolved Qt version is 6.7.0 or newer, and `aqtinstall` is 3.2.0 or newer.
+- Otherwise, the platform on which the action is running.
+
+### `target`
+This is the target platform that you will be building for. You will want to set this if you are building for iOS or Android. Please note that iOS builds are supported only on macOS hosts and Win RT builds are only supported on Windows hosts.
+
+Possible values: `desktop`, `android`, `ios`, or `wasm`.  
+`wasm` is used with `all_os`, and incompatible with `aqtinstall < 3.2.0`.  
+
+Default: `desktop`  
+
+### `arch`
+This is the target architecture or build variant that your program will be built against.
+
+**Linux x86 packages are not supported by this action.** Qt does not offer pre-built Linux x86 packages. Please consider using your distro's repository or building from source manually.
+
+**Possible values:**
+
+You can find a full list of architectures easily by using [this awesome website](https://ddalcino.github.io/aqt-list-server/).
+
+Default: A popular and reasonable choice calculated from the host (`host`), Qt version (`version`), and target (`target`):
+- Linux x64 Host & Desktop Target
+  - Qt `>=6.7`: `linux_gcc_64`
+  - Qt `<6.7`: `gcc_64`
+- Linux ARM64 Host & Desktop Target: `linux_gcc_arm64`
+- macOS Host & Desktop Target: `clang_64`
+- macOS Host & iOS Target: `ios`
+- Android Target
+  - Qt `>=6.0`: `android_armv7`
+  - Qt `>=5.14,<6.0`: `android`
+  - Qt `<5.14`: `android_armv7`
+- Windows ARM64 Host & Desktop Target: `win64_msvc2022_arm64`
+- Windows x64 Host
+  - Qt `>=6.8`: `win64_msvc2022_64`
+  - Qt `>=5.15,<6.8`: `win64_msvc2019_64`
+  - Qt `>=5.9,<5.15`: `win64_msvc2017_64`
+  - Qt `>=5.6,<5.9`: `win64_msvc2015_64`
+  - Qt `<5.6`: `win64_msvc2013_64`
+
+### `dir`
+This is the directory prefix that Qt will be installed to.
+
+For example, if you set dir to `${{ github.workspace }}/example/`, your bin folder will be located at `$GITHUB_WORKSPACE/example/Qt/5.15.2/{arch}/bin`.
+When possible, access your Qt directory through the `QT_ROOT_DIR` environment variable; this will point to `$GITHUB_WORKSPACE/example/Qt/5.15.2/{arch}` in this case.
+
+Default: `$RUNNER_WORKSPACE` (this is one folder above the starting directory)
+
+### `use-official` (since `v4.2.*`)
+Whether or not to use `aqtinstall` to install Qt using its official online installer (enabling the commercial versions for those owning a license). Incompatible with `aqtinstall < 3.2.1`.  
+The parameter `host` will then be ignored, as you can only install commercial Qt versions on the OS running the installer.  
+You should use secrets, and store the fields `email` and `pw` inside `QT_EMAIL` and `QT_PW` for example to match the example below.  
+Credentials `email` and `pw` are required.  
+
+Example:
+```yml
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.8.3'
+        target: 'desktop'
+        arch: 'win64_msvc2022_64'
+        use-official: true
+        email: ${{ secrets.QT_EMAIL }}
+        pw: ${{ secrets.QT_PW }}
+```
+
+Default: `false`
+
+#### `email`
+If `use-official` is true, will use this username/email to authenticate with Qt servers. Incompatible with `aqtinstall < 3.2.1`.  
+You should use secrets, and store the value inside `QT_EMAIL` for example to match the example above.
+
+#### `pw`
+If `use-official` is true, will use this password to authenticate with Qt servers. Incompatible with `aqtinstall < 3.2.1`.  
+You should use secrets, and store the value inside `QT_PW` for example to match the example above.
+
+### `install-deps`
+Whether or not to automatically install Qt dependencies on Linux through `apt`.
+
+Can be set to `nosudo` to stop it from using sudo, for example on a docker container where the user already has sufficient privileges.
+
+Default: `true`
+
+### `modules`
+String with whitespace delimited list of additional addon modules to install, with each entry separated by a space. If you need one of these, you'll know it.
+
+Possible values: `qtcharts`, `qtdatavis3d`, `qtpurchasing`, `qtvirtualkeyboard`, `qtwebengine`, `qtnetworkauth`, `qtwebglplugin`, `qtscript`, `debug_info`, and more
+
+Default: none
+
+### `archives`
+String with whitespace delimited list of Qt archives to install, with each entry separated by a space. Typically you don't need this unless you are aiming for bare minimum installation. I would strongly advise reading the [aqtinstall docs](https://aqtinstall.readthedocs.io/en/latest/getting_started.html#installing-a-subset-of-qt-archives-advanced) before using this feature.
+
+Possible values: `qtbase`, `qtsvg`, `qtdeclarative`, `qtgamepad`, `qtgraphicaleffects`, `qtimageformats`, `qtlocation`
+
+Default: none
+
+### `cache`
+
+Whether to cache Qt automatically. If it is set to `true`, then Qt won't be downloaded if a cached version is available, but the environment variables will always be set, and essential build tools will always be installed. You do not need a separate "actions/cache" step for this action's Qt installation.
+
+Default: `false`
+
+### `cache-key-prefix`
+
+Prefix to be used for the cache key of the automatic cache.
+
+Default: `install-qt-action`
+
+### `setup-python`
+
+Set this to false if you want to skip using setup-python to find/download a valid python version. If you are on a self-hosted runner, you will probably need to set this to false because setup-python [requires a very specific environment to work](https://github.com/actions/setup-python#using-setup-python-with-a-self-hosted-runner).
+
+Default: `true`
+
+### `tools`
+
+Qt "tools" to be installed.
+Specify the tool name and tool variant name separated by commas, and separate multiple tools with spaces.
+If you wish to install all tools available for a given tool name, you can leave off the tool variant name.
+I would advise reading the [aqtinstall docs](https://aqtinstall.readthedocs.io/en/latest/getting_started.html#installing-tools) for more info on installing tools.
+
+For example, this value will install the most recent versions of QtIFW and QtCreator: 
+```
+    tools: 'tools_ifw tools_qtcreator,qt.tools.qtcreator'
+```
+
+You can find a full list of tools easily by using [this awesome website](https://ddalcino.github.io/aqt-list-server/).
+
+### `add-tools-to-path`
+
+When set to `true`, and the `tools` parameter is non-empty,
+the following paths will be prepended to the `PATH` variable: 
+* `Tools/**/bin`
+* `*.app/Contents/MacOS`
+* `*.app/**/bin`
+* `Tools/*/*.app/Contents/MacOS`
+* `Tools/*/*.app/**/bin`
+
+Most tools end up in the `Tools` folder, and have a `bin` directory containing CLI tools.
+On MacOS, several tools are packaged in `.app` bundles, and CLI tools are spread out among various `bin` folders
+and the `Contents/MacOS` folder.
+
+Distinct from, and not affected by, the `set-env` parameter.
+
+Default: `true`
+
+### `source`
+
+Set this to `true` to install Qt source code. Incompatible with `aqtinstall < 2.0.4`.
+
+Default: `false`
+
+### `src-archives`
+
+String with whitespace delimited list of source archives to install, with each entry separated by a space.
+Has no effect unless `source` is set to `true`.
+Useful to limit download size.
+
+See the `--archives` flag for [aqt install-src](https://aqtinstall.readthedocs.io/en/latest/cli.html#install-src-command) for more details.
+Use [aqt list-src](https://aqtinstall.readthedocs.io/en/latest/cli.html#list-src-command) to see available options.
+
+Default: none
+
+### `documentation`
+
+Set this to `true` to install Qt documentation files. Incompatible with `aqtinstall < 2.0.4`.
+
+Default: `false`
+
+### `doc-archives`
+
+String with whitespace delimited list of documentation archives to install, with each entry separated by a space.
+Has no effect unless `documentation` is set to `true`.
+Useful to limit download size.
+
+See the `--archives` flag for [aqt install-doc](https://aqtinstall.readthedocs.io/en/latest/cli.html#install-doc-command) for more details.
+Use [aqt list-doc](https://aqtinstall.readthedocs.io/en/latest/cli.html#list-doc-command) to see available options.
+
+Default: none
+
+### `doc-modules`
+
+String with whitespace delimited list of documentation modules to install, with each entry separated by a space.
+Has no effect unless `documentation` is set to `true`.
+Each module contains extra documentation not included with the base installation.
+
+See the `--modules` flag for [aqt install-doc](https://aqtinstall.readthedocs.io/en/latest/cli.html#install-doc-command) for more details.
+Use [aqt list-doc](https://aqtinstall.readthedocs.io/en/latest/cli.html#list-doc-command) to see available options.
+
+Default: none
+
+### `examples`
+
+Set this to `true` to install Qt example code. Incompatible with `aqtinstall < 2.0.4`.
+
+Default: `false`
+
+### `example-archives`
+
+String with whitespace delimited list of example archives to install, with each entry separated by a space.
+Has no effect unless `examples` is set to `true`.
+Useful to limit download size.
+
+See the `--archives` flag for [aqt install-example](https://aqtinstall.readthedocs.io/en/latest/cli.html#install-example-command) for more details.
+Use [aqt list-example](https://aqtinstall.readthedocs.io/en/latest/cli.html#list-example-command) to see available options.
+
+Default: none
+
+### `example-modules`
+
+String with whitespace delimited list of example modules to install, with each entry separated by a space.
+Has no effect unless `examples` is set to `true`.
+Each module contains extra examples not included with the base installation.
+
+See the `--modules` flag for [aqt install-example](https://aqtinstall.readthedocs.io/en/latest/cli.html#install-example-command) for more details.
+Use [aqt list-example](https://aqtinstall.readthedocs.io/en/latest/cli.html#list-example-command) to see available options.
+
+Default: none
+
+### `set-env`
+Set this to false if you want to avoid setting environment variables for whatever reason.
+Has no effect on `tools` paths; to modify these you must use `add-tools-to-path`.
+
+Default: `true`
+
+### `no-qt-binaries`
+
+Set this to true if you want to skip installing Qt. 
+This option is useful if you want to install tools, source, documentation, or examples.
+
+Default: `false`
+
+### ~~`tools-only`~~
+
+DEPRECATED
+
+This is a synonym for `no-qt-binaries`. It only exists to preserve backwards compatibility.
+If you set either `no-qt-binaries` or `tools-only` to `true`, you will skip installation of Qt.
+
+Default: `false`
+
+### `aqtsource`
+
+The full specifier for a version of [aqtinstall](https://github.com/miurahr/aqtinstall) as passed to pip. For example: `git+https://github.com/miurahr/aqtinstall.git`. This is intended to be used to troubleshoot any bugs that might be caused or fixed by certain versions of aqtinstall. Note that when this is used, the value of `aqtversion` is ignored.
+
+By default this is unset and ignored.
+
+### `aqtversion`
+
+Version of [aqtinstall](https://github.com/miurahr/aqtinstall) to use, given in the format used by pip, for example: `==0.7.1`, `>=0.7.1`, `==0.7.*`. This is intended to be used to troubleshoot any bugs that might be caused or fixed by certain versions of aqtinstall.
+
+Default: `==3.3.*`
+
+### `py7zrversion`
+Version of py7zr in the same style as the aqtversion and intended to be used for the same purpose.
+
+Default: `==1.1.0`
+
+### `extra`
+This option can be used to append arguments to the end of the aqtinstall command for any special purpose.
+
+Example value: `--external 7z`
+
+## Outputs and Environment Variables
+
+This action exposes outputs so later workflow steps can use values from a specific invocation. Unlike environment variables, which a later invocation may overwrite, each output remains associated with the step that produced it.
+
+| Output             | Environment variable | Description                                                                                                            |
+| ------------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| -                  | `IQTA_TOOLS`         | Absolute path to the top-level `Tools` directory for installed [`tools`](#tools). On macOS, some tools, such as Qt Creator, are installed as top-level app bundles outside this directory. The `Tools` directory may therefore not exist. |
+| `qt-root-dir`      | `QT_ROOT_DIR`        | Absolute path to the installed Qt root directory (installation prefix), containing directories such as `bin` and `lib` |
+| `qt-plugin-path`   | `QT_PLUGIN_PATH`     | Absolute path to the installed Qt plugins directory; `$QT_ROOT_DIR/plugins`                                            |
+| `qml2-import-path` | `QML2_IMPORT_PATH`   | Absolute path to the installed Qt QML imports directory; `$QT_ROOT_DIR/qml`                                            |
+| `qt-host-path`     | `QT_HOST_PATH`       | Absolute path to the host Qt installation directory for cross-compiling to Android, iOS, WASM, and Windows ARM64       |
+| -                  | ~~`Qt5_DIR`~~        | `$QT_ROOT_DIR/lib/cmake`; DEPRECATED                                                                                   |
+
+The following directories are appended to the corresponding environment variables:
+
+| Environment variable | Path                         | Platform            |
+| -------------------- | ---------------------------- | ------------------- |
+| `LD_LIBRARY_PATH`    | `$QT_ROOT_DIR/lib`           | Linux only          |
+| `PKG_CONFIG_PATH`    | `$QT_ROOT_DIR/lib/pkgconfig` | For Linux and macOS |
+
+The following directories are prepended to `PATH`:
+
+| Directory                   | Description                                                                                                                                                       |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Qt's `bin`                  | `$QT_ROOT_DIR/bin`                                                                                                                                                |
+| Tool executable directories | When [`tools`](#tools) is non-empty; can be disabled by setting [`add-tools-to-path`](#add-tools-to-path) to `false` and is not affected by [`set-env`](#set-env) |
+
+Typically, when the Qt `bin` directory is in `PATH`, you do not need to modify `CMAKE_PREFIX_PATH`. If needed, you can include `$QT_ROOT_DIR` or `$QT_ROOT_DIR/lib/cmake` in it.
+
+The environment-variable changes listed above can be disabled by setting [`set-env`](#set-env) to `false`, unless otherwise specified.
+
+The outputs below report the resolved [options](#Options), including any defaults and the exact Qt version selected from a SimpleSpec:
+
+| Output    | Description                                       |
+| --------- | ------------------------------------------------- |
+| `host`    | Host platform of the installed Qt                 |
+| `target`  | Target platform for the installed Qt              |
+| `version` | Exact installed Qt version; not a SimpleSpec      |
+| `arch`    | Architecture or build variant of the installed Qt |
+
+
+## Example with more arguments
+
+```yml
+    - name: Install Qt
+      id: install-qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.8.3'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2022_64'
+        dir: '${{ github.workspace }}/example/'
+        install-deps: 'true'
+        modules: 'qtcharts qtwebengine'
+        archives: 'qtbase qtsvg'
+        cache: 'false'
+        cache-key-prefix: 'install-qt-action'
+        setup-python: 'true'
+        tools: 'tools_ifw tools_qtcreator,qt.tools.qtcreator'
+        set-env: 'true'
+        no-qt-binaries: 'false'
+        aqtversion: '==3.3.*'
+        py7zrversion: '==1.1.0'
+        extra: '--external 7z'
+        use-official: false
+        email: ${{ secrets.QT_EMAIL }}
+        pw: ${{ secrets.QT_PW }}
+
+    - name: Check result
+      env:
+        QT_VER:    ${{ steps.install-qt.outputs.version }}
+        QT_TARGET: ${{ steps.install-qt.outputs.target }}
+        QT_ARCH:   ${{ steps.install-qt.outputs.arch }}
+        QT_HOST:   ${{ steps.install-qt.outputs.host }}
+
+        # See also the automatically set environment variable "QT_ROOT_DIR"
+        ROOT_DIR:   ${{ steps.install-qt.outputs.qt-root-dir }}
+      run: |
+        echo "Qt $QT_VER ($QT_TARGET/$QT_ARCH on $QT_HOST) has been installed in '$ROOT_DIR':"
+        ls "$ROOT_DIR"
+
+        # Check PATH
+        command -v qmake
+      shell: bash
+```
+
+
+## More information
+For more in-depth and certifiably up-to-date documentation, check the documentation for aqtinstall [here](https://aqtinstall.readthedocs.io/en/latest/getting_started.html).
+
+Big thanks to the [aqtinstall](https://github.com/miurahr/aqtinstall/) developer for making this easy. Please go support [miurahr](https://github.com/miurahr/aqtinstall), he did all of the hard work here ([his liberapay](https://liberapay.com/miurahr)).
+
+This action is distributed under the [MIT license](LICENSE).
+
+By using this action, you agree to the terms of Qt's licensing. See [Qt licensing](https://www.qt.io/licensing/) and [Licenses used by Qt](https://doc.qt.io/qt-5/licenses-used-in-qt.html).
 
 ## Privacy
 

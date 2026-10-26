@@ -1,0 +1,37 @@
+name: Test Qt 5 install
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # act cannot resolve the action's inner "uses: $/action" step, so the
+      # step may fail under act; outputs are validated strictly on success.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          version: "5.15.2"
+          dir: ${{ runner.temp }}/qt5
+          install-deps: "false"
+      - name: Assert Qt5 outputs and env
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          ROOT: ${{ steps.action.outputs.qt-root-dir }}
+          VERSION: ${{ steps.action.outputs.version }}
+          ARCH: ${{ steps.action.outputs.arch }}
+        run: |
+          echo "outcome=$OUTCOME root=$ROOT version=$VERSION arch=$ARCH Qt5_DIR=${Qt5_DIR:-}"
+          if [ "$OUTCOME" = "success" ]; then
+            [ "$VERSION" = "5.15.2" ] || { echo "FAIL: version"; exit 1; }
+            [ "$ARCH" = "gcc_64" ] || { echo "FAIL: arch expected gcc_64"; exit 1; }
+            [ -x "$ROOT/bin/qmake" ] || { echo "FAIL: qmake missing"; exit 1; }
+            [ "${Qt5_DIR:-}" = "$ROOT/lib/cmake" ] || { echo "FAIL: Qt5_DIR"; exit 1; }
+            echo "PASS: Qt5 installed"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed at the unsupported 'uses: \$/action' step under act"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

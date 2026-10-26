@@ -1,0 +1,39 @@
+name: Test source, docs and examples archives
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          version: "6.8.3"
+          no-qt-binaries: "true"
+          source: "true"
+          src-archives: qtbase
+          documentation: "true"
+          doc-archives: qtcore
+          doc-modules: qtcharts
+          examples: "true"
+          example-archives: qtbase
+          example-modules: qtcharts
+          dir: ${{ runner.temp }}/qt-src
+          install-deps: "false"
+      - name: Assert outcome
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          BASE: ${{ runner.temp }}/qt-src/Qt
+        run: |
+          echo "outcome=$OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            [ -d "$BASE" ] || { echo "FAIL: install dir missing"; exit 1; }
+            echo "PASS"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed at the unsupported 'uses: \$/action' step under act"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

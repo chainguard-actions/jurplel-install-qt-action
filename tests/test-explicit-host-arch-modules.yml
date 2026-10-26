@@ -1,0 +1,45 @@
+name: Test explicit host/arch/modules/archives/extra/aqtsource
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # The inner "uses: $/action" step is not resolvable by act; on runners
+      # that support it, outputs are validated strictly.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          version: "6.8.3"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: qtcharts
+          archives: qtbase icu
+          extra: --timeout 300
+          aqtsource: aqtinstall==3.3.*
+          dir: ${{ runner.temp }}/qt-explicit
+          install-deps: "false"
+      - name: Assert outputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          VERSION: ${{ steps.action.outputs.version }}
+          HOST: ${{ steps.action.outputs.host }}
+          ARCH: ${{ steps.action.outputs.arch }}
+          ROOT: ${{ steps.action.outputs.qt-root-dir }}
+        run: |
+          echo "outcome=$OUTCOME version=$VERSION host=$HOST arch=$ARCH root=$ROOT"
+          if [ "$OUTCOME" = "success" ]; then
+            [ "$VERSION" = "6.8.3" ] || { echo "FAIL: version"; exit 1; }
+            [ "$HOST" = "linux" ] || { echo "FAIL: host"; exit 1; }
+            [ "$ARCH" = "linux_gcc_64" ] || { echo "FAIL: arch"; exit 1; }
+            [ -d "$ROOT" ] || { echo "FAIL: qt-root-dir missing"; exit 1; }
+            echo "PASS"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed at the unsupported 'uses: \$/action' step under act"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

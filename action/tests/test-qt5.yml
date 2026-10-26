@@ -1,0 +1,58 @@
+name: Test Qt 5 install sets Qt5_DIR
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bootstrap action sources into the workspace if missing
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          echo "workspace: $GITHUB_WORKSPACE"
+          ls -la
+          if [ -f action/action.yml ] && [ -f action/lib/main.js ]; then
+            echo "action/ already present with built lib"
+            exit 0
+          fi
+          rm -rf /tmp/iqa-src
+          git clone --depth 1 --branch v4.5.0 https://github.com/jurplel/install-qt-action.git /tmp/iqa-src
+          if [ ! -f action/action.yml ]; then
+            rm -rf action
+            cp -r /tmp/iqa-src/action action
+          fi
+          if [ ! -f action/lib/main.js ]; then
+            (cd action && (npm ci || npm install) && npm run build)
+          fi
+          ls -la action action/lib
+          [ -f action/lib/main.js ] || { echo "FAIL: could not build action"; exit 1; }
+      - name: Ensure python3 + pip are available
+        run: |
+          SUDO="$(command -v sudo || true)"
+          if ! python3 -m pip --version; then
+            $SUDO apt-get update && $SUDO apt-get install -y python3-pip
+          fi
+          echo "PIP_BREAK_SYSTEM_PACKAGES=1" >> "$GITHUB_ENV"
+      - id: qt
+        uses: .
+        with:
+          dir: ${{ runner.temp }}/qt5
+          version: "5.15.2"
+          host: linux
+          install-deps: "false"
+          archives: qtbase icu
+      - name: Assert Qt 5 outputs and env
+        env:
+          VERSION: ${{ steps.qt.outputs.version }}
+          ARCH: ${{ steps.qt.outputs.arch }}
+          ROOT: ${{ steps.qt.outputs.qt-root-dir }}
+          EXPECTED_ROOT: ${{ runner.temp }}/qt5/Qt/5.15.2/gcc_64
+        run: |
+          echo "version=$VERSION arch=$ARCH root=$ROOT Qt5_DIR=$Qt5_DIR"
+          fail=0
+          [ "$VERSION" = "5.15.2" ] || { echo "FAIL: version"; fail=1; }
+          [ "$ARCH" = "gcc_64" ] || { echo "FAIL: arch"; fail=1; }
+          [ "$ROOT" = "$EXPECTED_ROOT" ] || { echo "FAIL: qt-root-dir"; fail=1; }
+          [ -x "$ROOT/bin/qmake" ] || { echo "FAIL: qmake missing"; fail=1; }
+          [ "$Qt5_DIR" = "$EXPECTED_ROOT/lib/cmake" ] || { echo "FAIL: Qt5_DIR"; fail=1; }
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"
